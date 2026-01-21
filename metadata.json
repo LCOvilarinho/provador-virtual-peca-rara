@@ -1,0 +1,7 @@
+{
+  "name": "Peça Rara - Provador Virtual",
+  "description": "Experimente roupas do brechó Peça Rara instantaneamente usando inteligência artificial.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
