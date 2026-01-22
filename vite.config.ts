@@ -1,7 +1,18 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: './',   // <--- isso corrige a maioria das telas pretas
-})
+  define: {
+    // Mapeia a variável de ambiente para que o SDK da Gemini possa acessá-la via process.env.API_KEY
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+  },
+  server: {
+    port: 3000
+  },
+  build: {
+    outDir: 'dist',
+    target: 'esnext'
+  }
+});
