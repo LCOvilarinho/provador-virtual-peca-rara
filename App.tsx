@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { CameraCapture } from './components/CameraCapture';
@@ -54,9 +53,9 @@ const App: React.FC = () => {
         const errorStr = String(err);
         setState(prev => ({ ...prev, step: 'error', errorMessage: errorStr }));
         
-        // Se for erro de limite, inicia o countdown de 30s
+        // Se for erro de limite (429), inicia o countdown de 60s (recomendado pelo Google)
         if (errorStr.includes('429') || errorStr.includes('Limite')) {
-          setRetryCountdown(30);
+          setRetryCountdown(60);
         }
       })
       .finally(() => clearInterval(interval));
@@ -64,7 +63,6 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [state.clothingImage, state.selfieImage]);
 
-  // Efeito do timer de reprocessamento
   useEffect(() => {
     if (retryCountdown > 0) {
       const timer = setTimeout(() => setRetryCountdown(retryCountdown - 1), 1000);
@@ -238,17 +236,17 @@ const App: React.FC = () => {
             </div>
             <div className="space-y-3">
               <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-tight">
-                {isAuthError ? 'Erro de Acesso' : isRateLimit ? 'Sistema Ocupado' : 'Problema Técnico'}
+                {isAuthError ? 'Acesso Negado' : isRateLimit ? 'Limite Atingido' : 'Erro de Processamento'}
               </h2>
               <div className="bg-stone-900 p-4 rounded-xl border border-stone-800">
                 <p className="text-red-400 text-xs font-mono leading-relaxed">{state.errorMessage}</p>
               </div>
               <p className="text-stone-500 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
                 {isAuthError 
-                  ? 'A chave de API configurada não tem permissão. Verifique as configurações na Vercel.' 
+                  ? 'A chave de API do Google não foi encontrada ou é inválida. Configure-a no painel da Vercel.' 
                   : isRateLimit 
-                    ? 'A versão gratuita da IA permite poucos usos por minuto. Por favor, aguarde o cronômetro para tentar novamente.'
-                    : 'Não conseguimos processar seu look. Tente fotos mais claras e com fundos neutros.'}
+                    ? 'O Google limita o uso da IA gratuita. Por favor, aguarde o cronômetro zerar para tentar novamente.'
+                    : 'Não conseguimos processar seu look. Verifique sua conexão e tente novamente.'}
               </p>
             </div>
             
@@ -259,7 +257,7 @@ const App: React.FC = () => {
                   disabled={retryCountdown > 0}
                   className={`w-full py-5 rounded-2xl font-black uppercase tracking-tight shadow-lg transition-all flex items-center justify-center gap-3 ${
                     retryCountdown > 0 
-                      ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50' 
+                      ? 'bg-stone-800 text-stone-500 cursor-not-allowed' 
                       : 'bg-[#FFC20E] text-black active:scale-95'
                   }`}
                 >
@@ -270,8 +268,8 @@ const App: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                      Reprocessar Agora
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                      Tentar Agora
                     </>
                   )}
                 </button>
@@ -281,7 +279,7 @@ const App: React.FC = () => {
                 onClick={reset}
                 className="w-full py-4 bg-transparent border-2 border-stone-800 text-stone-500 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-transform"
               >
-                Reiniciar do Zero
+                Cancelar e Voltar
               </button>
             </div>
           </div>
