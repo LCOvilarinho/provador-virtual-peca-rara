@@ -1,22 +1,25 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("API_KEY não configurada. Se estiver na Vercel, adicione a variável de ambiente API_KEY.");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
+/**
+ * Process virtual fitting using Gemini 2.5 Flash Image model.
+ * Always initializes a new instance of GoogleGenAI using process.env.API_KEY directly.
+ */
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
   try {
-    const ai = getAI();
+    // ALWAYS initialize the AI client using this named parameter pattern with process.env.API_KEY.
+    // Creating it right before use ensures the most up-to-date configuration is used.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Extração pura dos dados base64
-    const cleanClothing = clothingBase64.split(',')[1] || clothingBase64;
-    const cleanSelfie = selfieBase64.split(',')[1] || selfieBase64;
+    // Extract base64 data by removing the data URL prefix if present.
+    const cleanClothing = clothingBase64.includes(',') ? clothingBase64.split(',')[1] : clothingBase64;
+    const cleanSelfie = selfieBase64.includes(',') ? selfieBase64.split(',')[1] : selfieBase64;
 
+    // Detect mime types from the input strings to be more robust.
+    const clothingMime = clothingBase64.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+    const selfieMime = selfieBase64.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+
+    // Using gemini-2.5-flash-image for image editing tasks.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -24,13 +27,13 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
           {
             inlineData: {
               data: cleanClothing,
-              mimeType: 'image/jpeg'
+              mimeType: clothingMime
             }
           },
           {
             inlineData: {
               data: cleanSelfie,
-              mimeType: 'image/jpeg'
+              mimeType: selfieMime
             }
           },
           {
@@ -51,24 +54,36 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
 
     const candidate = response.candidates?.[0];
     if (!candidate || !candidate.content?.parts) {
-      throw new Error("A IA não conseguiu processar as imagens. Tente fotos com fundo mais simples.");
+      throw new Error("A IA não retornou um resultado válido. Verifique se as imagens estão claras.");
     }
 
+    // Iterate through all parts to find the image part as per guidelines.
     for (const part of candidate.content.parts) {
-      if (part.inlineData?.data) {
-        return `data:image/png;base64,${part.inlineData.data}`;
+      if (part.inlineData) {
+        const base64EncodeString: string = part.inlineData.data;
+        // The output image is returned as raw base64 data.
+        return `data:image/png;base64,${base64EncodeString}`;
+      } else if (part.text) {
+        // Log any text output for debugging purposes.
+        console.log("AI feedback:", part.text);
       }
     }
 
-    throw new Error("A IA processou, mas não retornou uma imagem válida.");
+    throw new Error("Nenhuma imagem gerada pela IA.");
   } catch (error: any) {
     console.error("Erro detalhado na Gemini API:", error);
     
-    // Tratamento de erros comuns para o usuário
-    if (error.message?.includes("403")) return Promise.reject("Erro de Permissão: Verifique se sua API Key é válida.");
-    if (error.message?.includes("429")) return Promise.reject("Limite excedido: Muitas pessoas usando ao mesmo tempo. Aguarde um minuto.");
-    if (error.message?.includes("fetch")) return Promise.reject("Erro de Conexão: Verifique sua internet.");
+    const errorMessage = error.message || "";
     
-    return Promise.reject(error.message || "Erro desconhecido ao processar o look.");
+    // Handle specific API error codes gracefully.
+    if (errorMessage.includes("403") || errorMessage.includes("PERMISSION_DENIED")) {
+      throw new Error("Chave API Inválida ou Sem Permissão. Acesse o Google AI Studio e verifique sua chave e o faturamento do projeto.");
+    }
+    
+    if (errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
+      throw new Error("Limite de uso atingido. Aguarde 60 segundos antes de tentar novamente.");
+    }
+    
+    throw new Error(errorMessage || "Erro desconhecido ao processar o look.");
   }
 };

@@ -50,8 +50,7 @@ const App: React.FC = () => {
         setState(prev => ({ ...prev, resultImage: result, step: 'result', errorMessage: null }));
       })
       .catch(err => {
-        const errorMsg = typeof err === 'string' ? err : "Não conseguimos processar agora. Verifique a API_KEY.";
-        setState(prev => ({ ...prev, step: 'error', errorMessage: errorMsg }));
+        setState(prev => ({ ...prev, step: 'error', errorMessage: String(err) }));
       })
       .finally(() => clearInterval(interval));
 
@@ -204,7 +203,7 @@ const App: React.FC = () => {
                 onClick={reset}
                 className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-tight active:scale-95 transition-transform"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                <svg xmlns="http://www.w3.org/2000/round" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
                 Tentar Outra Peça
               </button>
             </div>
@@ -212,27 +211,37 @@ const App: React.FC = () => {
         );
 
       case 'error':
+        const isAuthError = state.errorMessage?.toLowerCase().includes('chave') || state.errorMessage?.toLowerCase().includes('permissão');
+        
         return (
           <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4">
             <div className="w-24 h-24 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center border-4 border-red-900/30">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             </div>
             <div className="space-y-3">
-              <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-tight">Limite de Uso</h2>
+              <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-tight">
+                {isAuthError ? 'Erro de Configuração' : 'Problema Técnico'}
+              </h2>
               <div className="bg-stone-900 p-4 rounded-xl border border-red-900/20">
                 <p className="text-red-400 text-xs font-mono break-all">{state.errorMessage}</p>
               </div>
-              <p className="text-stone-500 text-xs mt-4 italic">Muitas pessoas estão usando a IA agora. Aguarde 30 segundos e tente o botão de reprocessar abaixo.</p>
+              <p className="text-stone-500 text-xs mt-4 italic">
+                {isAuthError 
+                  ? 'Verifique se sua API_KEY está correta nas variáveis de ambiente da Vercel ou no arquivo .env local.' 
+                  : 'Muitas pessoas estão usando a IA agora. Aguarde 30 segundos e tente o botão de reprocessar abaixo.'}
+              </p>
             </div>
             
             <div className="w-full space-y-3">
-              <button
-                onClick={retryProcessing}
-                className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-tight shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-3"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                Reprocessar Agora
-              </button>
+              {!isAuthError && (
+                <button
+                  onClick={retryProcessing}
+                  className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-tight shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-3"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                  Reprocessar Agora
+                </button>
+              )}
               
               <button
                 onClick={reset}
