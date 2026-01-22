@@ -2,18 +2,45 @@
 import { GoogleGenAI } from "@google/genai";
 
 /**
+ * Redimensiona e comprime a imagem em base64 para evitar payloads muito grandes.
+ */
+const compressImage = async (base64: string, maxWidth = 1024): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+  });
+};
+
+/**
  * Processa o provador virtual usando o modelo Gemini 2.5 Flash Image.
  */
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
   try {
-    // Inicializa sempre com a chave injetada no ambiente
+    // Inicializa a API
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    const cleanClothing = clothingBase64.includes(',') ? clothingBase64.split(',')[1] : clothingBase64;
-    const cleanSelfie = selfieBase64.includes(',') ? selfieBase64.split(',')[1] : selfieBase64;
+    // Comprime as imagens antes de enviar para economizar cota e banda
+    const compressedClothing = await compressImage(clothingBase64);
+    const compressedSelfie = await compressImage(selfieBase64);
 
-    const clothingMime = clothingBase64.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
-    const selfieMime = selfieBase64.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
+    const cleanClothing = compressedClothing.split(',')[1];
+    const cleanSelfie = compressedSelfie.split(',')[1];
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -22,13 +49,13 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
           {
             inlineData: {
               data: cleanClothing,
-              mimeType: clothingMime
+              mimeType: 'image/jpeg'
             }
           },
           {
             inlineData: {
               data: cleanSelfie,
-              mimeType: selfieMime
+              mimeType: 'image/jpeg'
             }
           },
           {
@@ -37,11 +64,10 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
             Instruction: Take the clothing item from the first image and realistically apply it to the person in the second image.
             
             Technical Requirements:
-            1. Maintain the exact fabric texture, patterns, and colors of the garment.
-            2. Adjust the fit to the person's body posture and shape naturally.
-            3. Keep the person's face and hair exactly as in the selfie.
-            4. Ensure realistic lighting and shadows.
-            5. Return ONLY the resulting image. No text.`
+            1. Maintain patterns and colors of the garment.
+            2. Adjust the fit to the person's body naturally.
+            3. Keep the person's face exactly as in the selfie.
+            4. Return ONLY the resulting image.`
           }
         ]
       }
@@ -49,7 +75,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
 
     const candidate = response.candidates?.[0];
     if (!candidate || !candidate.content?.parts) {
-      throw new Error("A IA não conseguiu processar as imagens. Tente fotos com fundo mais simples.");
+      throw new Error("A IA está ocupada processando outras solicitações. Tente novamente em instantes.");
     }
 
     for (const part of candidate.content.parts) {
@@ -58,24 +84,20 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
       }
     }
 
-    throw new Error("O look foi processado, mas a imagem não foi retornada.");
+    throw new Error("O look foi processado, mas a imagem não foi retornada corretamente.");
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     
     const message = error.message || "";
     
     if (message.includes("403") || message.includes("PERMISSION_DENIED")) {
-      throw new Error("Erro de Permissão (403): Verifique se a API_KEY nas configurações da Vercel está correta e ativa.");
+      throw new Error("Erro de Chave (403): Verifique se a variável API_KEY está correta no painel da Vercel.");
     }
     
     if (message.includes("429") || message.includes("RESOURCE_EXHAUSTED")) {
-      throw new Error("Limite de Uso (429): Muitas solicitações simultâneas na versão gratuita. Aguarde 1 minuto.");
-    }
-
-    if (message.includes("404") || message.includes("NOT_FOUND")) {
-      throw new Error("Modelo não disponível (404): O modelo gemini-2.5-flash-image pode não estar disponível na sua região ou para sua chave.");
+      throw new Error("Sistema Ocupado (429): O Google limitou o acesso temporariamente. Aguarde 1 minuto.");
     }
     
-    throw new Error(message || "Ocorreu um erro ao criar seu visual.");
+    throw new Error("Ocorreu um erro ao criar seu visual. Verifique sua conexão ou tente fotos mais simples.");
   }
 };

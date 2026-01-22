@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { CameraCapture } from './components/CameraCapture';
@@ -32,18 +33,18 @@ const App: React.FC = () => {
     if (!state.clothingImage || !state.selfieImage) return;
 
     const messages = [
+      "Otimizando imagens...",
       "Analisando tecidos...",
       "Ajustando o caimento...",
-      "Harmonizando iluminação...",
-      "Quase pronto...",
-      "Finalizando sua produção!"
+      "Harmonizando luz...",
+      "Finalizando produção!"
     ];
     
     let msgIndex = 0;
     const interval = setInterval(() => {
       setLoadingMessage(messages[msgIndex % messages.length]);
       msgIndex++;
-    }, 3000);
+    }, 3500);
 
     processVirtualFitting(state.clothingImage, state.selfieImage)
       .then(result => {
@@ -53,8 +54,8 @@ const App: React.FC = () => {
         const errorStr = String(err);
         setState(prev => ({ ...prev, step: 'error', errorMessage: errorStr }));
         
-        // Se for erro de limite (429), inicia o countdown de 60s (recomendado pelo Google)
-        if (errorStr.includes('429') || errorStr.includes('Limite')) {
+        // Se for erro de limite (429), inicia o countdown de 60s
+        if (errorStr.includes('429') || errorStr.includes('Ocupado')) {
           setRetryCountdown(60);
         }
       })
@@ -226,8 +227,8 @@ const App: React.FC = () => {
         );
 
       case 'error':
-        const isAuthError = state.errorMessage?.toLowerCase().includes('chave') || state.errorMessage?.toLowerCase().includes('permissão');
-        const isRateLimit = state.errorMessage?.toLowerCase().includes('limite') || state.errorMessage?.toLowerCase().includes('429');
+        const isAuthError = state.errorMessage?.toLowerCase().includes('403') || state.errorMessage?.toLowerCase().includes('chave');
+        const isRateLimit = state.errorMessage?.toLowerCase().includes('429') || state.errorMessage?.toLowerCase().includes('ocupado');
         
         return (
           <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4 animate-in fade-in duration-500">
@@ -236,16 +237,16 @@ const App: React.FC = () => {
             </div>
             <div className="space-y-3">
               <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-tight">
-                {isAuthError ? 'Acesso Negado' : isRateLimit ? 'Limite Atingido' : 'Erro de Processamento'}
+                {isAuthError ? 'Erro de Configuração' : isRateLimit ? 'Sistema Congestionado' : 'Erro Inesperado'}
               </h2>
               <div className="bg-stone-900 p-4 rounded-xl border border-stone-800">
                 <p className="text-red-400 text-xs font-mono leading-relaxed">{state.errorMessage}</p>
               </div>
               <p className="text-stone-500 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
                 {isAuthError 
-                  ? 'A chave de API do Google não foi encontrada ou é inválida. Configure-a no painel da Vercel.' 
+                  ? 'Verifique se você adicionou a variável API_KEY corretamente no painel da Vercel (Environment Variables).' 
                   : isRateLimit 
-                    ? 'O Google limita o uso da IA gratuita. Por favor, aguarde o cronômetro zerar para tentar novamente.'
+                    ? 'A versão gratuita do Google permite poucas fotos por minuto. Por favor, aguarde o cronômetro para liberar o acesso.'
                     : 'Não conseguimos processar seu look. Verifique sua conexão e tente novamente.'}
               </p>
             </div>
@@ -264,12 +265,12 @@ const App: React.FC = () => {
                   {retryCountdown > 0 ? (
                     <>
                       <svg className="animate-spin h-5 w-5 text-stone-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      Aguarde {retryCountdown}s
+                      Liberando em {retryCountdown}s
                     </>
                   ) : (
                     <>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                      Tentar Agora
+                      Tentar Novamente
                     </>
                   )}
                 </button>
