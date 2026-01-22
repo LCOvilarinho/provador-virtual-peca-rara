@@ -203,7 +203,8 @@ const App: React.FC = () => {
                 onClick={reset}
                 className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-tight active:scale-95 transition-transform"
               >
-                <svg xmlns="http://www.w3.org/2000/round" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                {/* Fixed incorrect xmlns typo: http://www.w3.org/2000/round -> http://www.w3.org/2000/svg */}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
                 Tentar Outra Peça
               </button>
             </div>
@@ -238,7 +239,7 @@ const App: React.FC = () => {
                   onClick={retryProcessing}
                   className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-tight shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-3"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
                   Reprocessar Agora
                 </button>
               )}
