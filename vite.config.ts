@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './'  // Caminhos relativos: corrige tela preta em deploy
+  base: './'   // <--- isso corrige a maioria das telas pretas
 })
