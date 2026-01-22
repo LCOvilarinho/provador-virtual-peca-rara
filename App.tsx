@@ -49,8 +49,8 @@ const App: React.FC = () => {
           setState(prev => ({ ...prev, resultImage: result, step: 'result' }));
         })
         .catch(err => {
-          console.error(err);
-          setState(prev => ({ ...prev, step: 'error', errorMessage: "Oops! Não conseguimos processar agora. Tente novamente." }));
+          const errorMsg = typeof err === 'string' ? err : "Não conseguimos processar agora. Verifique a API_KEY.";
+          setState(prev => ({ ...prev, step: 'error', errorMessage: errorMsg }));
         })
         .finally(() => clearInterval(interval));
 
@@ -197,28 +197,27 @@ const App: React.FC = () => {
                 Tentar Outra Peça
               </button>
             </div>
-            
-            <p className="text-[10px] text-stone-600 text-center uppercase tracking-[0.3em] font-black">
-              Moda Sustentável • Estilo Único
-            </p>
           </div>
         );
 
       case 'error':
         return (
-          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12">
+          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4">
             <div className="w-24 h-24 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center border-4 border-red-900/30">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             </div>
-            <div className="space-y-2">
-              <h2 className="text-3xl font-black text-white tracking-tighter uppercase">Falha Técnica</h2>
-              <p className="text-stone-500 font-medium">{state.errorMessage}</p>
+            <div className="space-y-3">
+              <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Ops! Algo deu errado</h2>
+              <div className="bg-stone-900 p-4 rounded-xl border border-red-900/20">
+                <p className="text-red-400 text-xs font-mono break-all">{state.errorMessage}</p>
+              </div>
+              <p className="text-stone-500 text-xs mt-4">Dica: Tire fotos menores ou em lugares mais claros.</p>
             </div>
             <button
               onClick={reset}
-              className="px-12 py-4 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-widest shadow-lg"
+              className="w-full py-4 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform"
             >
-              Reiniciar
+              Tentar Novamente
             </button>
           </div>
         );

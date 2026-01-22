@@ -1,17 +1,22 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// The API Key is expected to be in process.env.API_KEY
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("API_KEY não configurada. Se estiver na Vercel, adicione a variável de ambiente API_KEY.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
-  const ai = getAI();
-  
-  // Clean base64 strings (remove metadata prefix if present)
-  const cleanClothing = clothingBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-  const cleanSelfie = selfieBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-
   try {
+    const ai = getAI();
+    
+    // Extração pura dos dados base64
+    const cleanClothing = clothingBase64.split(',')[1] || clothingBase64;
+    const cleanSelfie = selfieBase64.split(',')[1] || selfieBase64;
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -29,35 +34,41 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
             }
           },
           {
-            text: `Aja como um editor de moda profissional da Peça Rara Brechó.
-            Tarefa: Realize um "virtual try-on" realista.
-            Instrução: Pegue a roupa da primeira imagem e transfira-a para a pessoa na segunda imagem.
-            Regras Críticas:
-            1. Preserve as texturas originais, estampas e cores da peça de roupa.
-            2. Ajuste o caimento da roupa ao corpo da pessoa de forma natural, respeitando dobras e sombras.
-            3. Mantenha o rosto e as características físicas da pessoa idênticas à imagem original da selfie.
-            4. O fundo deve permanecer coerente com a foto da selfie.
-            5. O resultado final deve parecer uma fotografia profissional de estúdio de moda.
-            Gere APENAS a imagem final resultante, sem texto, legendas ou explicações.`
+            text: `Act as a high-end fashion AI editor for Peça Rara Brechó.
+            Task: Virtual Try-On.
+            Instruction: Take the garment from the first image and realistically overlay it onto the person in the second image.
+            
+            Technical Requirements:
+            1. Maintain the exact fabric texture, patterns, and colors of the garment.
+            2. Adjust the fit to the person's body posture and shape naturally.
+            3. Keep the person's identity (face, hair, skin tone) exactly as in the selfie.
+            4. Ensure realistic shadows and lighting consistency between the person and the new clothing.
+            5. Output ONLY the resulting high-quality image. No text or explanation.`
           }
         ]
       }
     });
 
-    if (!response.candidates?.[0]?.content?.parts) {
-      throw new Error("Não foi possível gerar a imagem.");
+    const candidate = response.candidates?.[0];
+    if (!candidate || !candidate.content?.parts) {
+      throw new Error("A IA não conseguiu processar as imagens. Tente fotos com fundo mais simples.");
     }
 
-    // Iterate through parts to find the image data
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
+    for (const part of candidate.content.parts) {
+      if (part.inlineData?.data) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
 
-    throw new Error("Nenhuma imagem retornada pela IA.");
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw error;
+    throw new Error("A IA processou, mas não retornou uma imagem válida.");
+  } catch (error: any) {
+    console.error("Erro detalhado na Gemini API:", error);
+    
+    // Tratamento de erros comuns para o usuário
+    if (error.message?.includes("403")) return Promise.reject("Erro de Permissão: Verifique se sua API Key é válida.");
+    if (error.message?.includes("429")) return Promise.reject("Limite excedido: Muitas pessoas usando ao mesmo tempo. Aguarde um minuto.");
+    if (error.message?.includes("fetch")) return Promise.reject("Erro de Conexão: Verifique sua internet.");
+    
+    return Promise.reject(error.message || "Erro desconhecido ao processar o look.");
   }
 };

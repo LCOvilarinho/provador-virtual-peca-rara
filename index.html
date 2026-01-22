@@ -15,6 +15,11 @@
             background-color: #000000;
         }
         .glass { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); }
+        
+        /* Otimização para iOS/Safari para evitar zoom indesejado em inputs */
+        input[type="file"] {
+            font-size: 16px;
+        }
     </style>
 <script type="importmap">
 {
