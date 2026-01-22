@@ -16,9 +16,18 @@
         }
         .glass { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); }
         
-        /* Otimização para iOS/Safari para evitar zoom indesejado em inputs */
+        /* Otimização para iOS/Safari */
         input[type="file"] {
             font-size: 16px;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.5; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(0.95); opacity: 0.5; }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite ease-in-out;
         }
     </style>
 <script type="importmap">

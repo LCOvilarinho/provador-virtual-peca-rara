@@ -15,6 +15,7 @@ const App: React.FC = () => {
   });
 
   const [loadingMessage, setLoadingMessage] = useState("Preparando seu visual...");
+  const [retryCountdown, setRetryCountdown] = useState(0);
 
   const updateStep = (step: AppStep) => setState(prev => ({ ...prev, step }));
 
@@ -50,12 +51,26 @@ const App: React.FC = () => {
         setState(prev => ({ ...prev, resultImage: result, step: 'result', errorMessage: null }));
       })
       .catch(err => {
-        setState(prev => ({ ...prev, step: 'error', errorMessage: String(err) }));
+        const errorStr = String(err);
+        setState(prev => ({ ...prev, step: 'error', errorMessage: errorStr }));
+        
+        // Se for erro de limite, inicia o countdown de 30s
+        if (errorStr.includes('429') || errorStr.includes('Limite')) {
+          setRetryCountdown(30);
+        }
       })
       .finally(() => clearInterval(interval));
 
     return () => clearInterval(interval);
   }, [state.clothingImage, state.selfieImage]);
+
+  // Efeito do timer de reprocessamento
+  useEffect(() => {
+    if (retryCountdown > 0) {
+      const timer = setTimeout(() => setRetryCountdown(retryCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [retryCountdown]);
 
   useEffect(() => {
     if (state.step === 'processing') {
@@ -65,6 +80,7 @@ const App: React.FC = () => {
   }, [state.step, runFittingProcess]);
 
   const retryProcessing = () => {
+    if (retryCountdown > 0) return;
     setState(prev => ({ ...prev, step: 'processing', errorMessage: null }));
   };
 
@@ -76,6 +92,7 @@ const App: React.FC = () => {
       resultImage: null,
       errorMessage: null,
     });
+    setRetryCountdown(0);
   };
 
   const renderContent = () => {
@@ -203,7 +220,6 @@ const App: React.FC = () => {
                 onClick={reset}
                 className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-tight active:scale-95 transition-transform"
               >
-                {/* Fixed incorrect xmlns typo: http://www.w3.org/2000/round -> http://www.w3.org/2000/svg */}
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
                 Tentar Outra Peça
               </button>
@@ -213,23 +229,26 @@ const App: React.FC = () => {
 
       case 'error':
         const isAuthError = state.errorMessage?.toLowerCase().includes('chave') || state.errorMessage?.toLowerCase().includes('permissão');
+        const isRateLimit = state.errorMessage?.toLowerCase().includes('limite') || state.errorMessage?.toLowerCase().includes('429');
         
         return (
-          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4">
-            <div className="w-24 h-24 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center border-4 border-red-900/30">
+          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4 animate-in fade-in duration-500">
+            <div className="w-24 h-24 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center border-4 border-red-900/30 animate-pulse-ring">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             </div>
             <div className="space-y-3">
               <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-tight">
-                {isAuthError ? 'Erro de Configuração' : 'Problema Técnico'}
+                {isAuthError ? 'Erro de Acesso' : isRateLimit ? 'Sistema Ocupado' : 'Problema Técnico'}
               </h2>
-              <div className="bg-stone-900 p-4 rounded-xl border border-red-900/20">
-                <p className="text-red-400 text-xs font-mono break-all">{state.errorMessage}</p>
+              <div className="bg-stone-900 p-4 rounded-xl border border-stone-800">
+                <p className="text-red-400 text-xs font-mono leading-relaxed">{state.errorMessage}</p>
               </div>
-              <p className="text-stone-500 text-xs mt-4 italic">
+              <p className="text-stone-500 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
                 {isAuthError 
-                  ? 'Verifique se sua API_KEY está correta nas variáveis de ambiente da Vercel ou no arquivo .env local.' 
-                  : 'Muitas pessoas estão usando a IA agora. Aguarde 30 segundos e tente o botão de reprocessar abaixo.'}
+                  ? 'A chave de API configurada não tem permissão. Verifique as configurações na Vercel.' 
+                  : isRateLimit 
+                    ? 'A versão gratuita da IA permite poucos usos por minuto. Por favor, aguarde o cronômetro para tentar novamente.'
+                    : 'Não conseguimos processar seu look. Tente fotos mais claras e com fundos neutros.'}
               </p>
             </div>
             
@@ -237,10 +256,24 @@ const App: React.FC = () => {
               {!isAuthError && (
                 <button
                   onClick={retryProcessing}
-                  className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-tight shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-3"
+                  disabled={retryCountdown > 0}
+                  className={`w-full py-5 rounded-2xl font-black uppercase tracking-tight shadow-lg transition-all flex items-center justify-center gap-3 ${
+                    retryCountdown > 0 
+                      ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50' 
+                      : 'bg-[#FFC20E] text-black active:scale-95'
+                  }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                  Reprocessar Agora
+                  {retryCountdown > 0 ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-stone-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Aguarde {retryCountdown}s
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                      Reprocessar Agora
+                    </>
+                  )}
                 </button>
               )}
               
