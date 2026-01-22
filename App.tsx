@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { CameraCapture } from './components/CameraCapture';
 import { processVirtualFitting } from './services/gemini';
@@ -28,35 +28,46 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, selfieImage: base64, step: 'processing' }));
   };
 
+  const runFittingProcess = useCallback(() => {
+    if (!state.clothingImage || !state.selfieImage) return;
+
+    const messages = [
+      "Analisando tecidos...",
+      "Ajustando o caimento...",
+      "Harmonizando iluminação...",
+      "Quase pronto...",
+      "Finalizando sua produção!"
+    ];
+    
+    let msgIndex = 0;
+    const interval = setInterval(() => {
+      setLoadingMessage(messages[msgIndex % messages.length]);
+      msgIndex++;
+    }, 3000);
+
+    processVirtualFitting(state.clothingImage, state.selfieImage)
+      .then(result => {
+        setState(prev => ({ ...prev, resultImage: result, step: 'result', errorMessage: null }));
+      })
+      .catch(err => {
+        const errorMsg = typeof err === 'string' ? err : "Não conseguimos processar agora. Verifique a API_KEY.";
+        setState(prev => ({ ...prev, step: 'error', errorMessage: errorMsg }));
+      })
+      .finally(() => clearInterval(interval));
+
+    return () => clearInterval(interval);
+  }, [state.clothingImage, state.selfieImage]);
+
   useEffect(() => {
-    if (state.step === 'processing' && state.clothingImage && state.selfieImage) {
-      const messages = [
-        "Analisando tecidos...",
-        "Ajustando o caimento...",
-        "Harmonizando iluminação...",
-        "Quase pronto...",
-        "Finalizando sua produção!"
-      ];
-      
-      let msgIndex = 0;
-      const interval = setInterval(() => {
-        setLoadingMessage(messages[msgIndex % messages.length]);
-        msgIndex++;
-      }, 3000);
-
-      processVirtualFitting(state.clothingImage, state.selfieImage)
-        .then(result => {
-          setState(prev => ({ ...prev, resultImage: result, step: 'result' }));
-        })
-        .catch(err => {
-          const errorMsg = typeof err === 'string' ? err : "Não conseguimos processar agora. Verifique a API_KEY.";
-          setState(prev => ({ ...prev, step: 'error', errorMessage: errorMsg }));
-        })
-        .finally(() => clearInterval(interval));
-
-      return () => clearInterval(interval);
+    if (state.step === 'processing') {
+      const cleanup = runFittingProcess();
+      return cleanup;
     }
-  }, [state.step, state.clothingImage, state.selfieImage]);
+  }, [state.step, runFittingProcess]);
+
+  const retryProcessing = () => {
+    setState(prev => ({ ...prev, step: 'processing', errorMessage: null }));
+  };
 
   const reset = () => {
     setState({
@@ -207,18 +218,29 @@ const App: React.FC = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             </div>
             <div className="space-y-3">
-              <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Ops! Algo deu errado</h2>
+              <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-tight">Limite de Uso</h2>
               <div className="bg-stone-900 p-4 rounded-xl border border-red-900/20">
                 <p className="text-red-400 text-xs font-mono break-all">{state.errorMessage}</p>
               </div>
-              <p className="text-stone-500 text-xs mt-4">Dica: Tire fotos menores ou em lugares mais claros.</p>
+              <p className="text-stone-500 text-xs mt-4 italic">Muitas pessoas estão usando a IA agora. Aguarde 30 segundos e tente o botão de reprocessar abaixo.</p>
             </div>
-            <button
-              onClick={reset}
-              className="w-full py-4 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform"
-            >
-              Tentar Novamente
-            </button>
+            
+            <div className="w-full space-y-3">
+              <button
+                onClick={retryProcessing}
+                className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black uppercase tracking-tight shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-3"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                Reprocessar Agora
+              </button>
+              
+              <button
+                onClick={reset}
+                className="w-full py-4 bg-transparent border-2 border-stone-800 text-stone-500 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-transform"
+              >
+                Reiniciar do Zero
+              </button>
+            </div>
           </div>
         );
     }
