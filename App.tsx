@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { CameraCapture } from './components/CameraCapture';
@@ -33,18 +32,18 @@ const App: React.FC = () => {
     if (!state.clothingImage || !state.selfieImage) return;
 
     const messages = [
-      "Otimizando imagens...",
-      "Analisando tecidos...",
-      "Ajustando o caimento...",
-      "Harmonizando luz...",
-      "Finalizando produção!"
+      "Processando tecidos...",
+      "Ajustando silhueta...",
+      "Sincronizando luzes...",
+      "Finalizando arte...",
+      "Pronto em instantes!"
     ];
     
     let msgIndex = 0;
     const interval = setInterval(() => {
       setLoadingMessage(messages[msgIndex % messages.length]);
       msgIndex++;
-    }, 3500);
+    }, 4000);
 
     processVirtualFitting(state.clothingImage, state.selfieImage)
       .then(result => {
@@ -54,9 +53,9 @@ const App: React.FC = () => {
         const errorStr = String(err);
         setState(prev => ({ ...prev, step: 'error', errorMessage: errorStr }));
         
-        // Se for erro de limite (429), inicia o countdown de 60s
-        if (errorStr.includes('429') || errorStr.includes('Ocupado')) {
-          setRetryCountdown(60);
+        // Na Vercel o limite de 1 minuto pode ser curto demais. Usamos 90s para segurança.
+        if (errorStr.includes('Limite') || errorStr.includes('429')) {
+          setRetryCountdown(90);
         }
       })
       .finally(() => clearInterval(interval));
@@ -112,7 +111,7 @@ const App: React.FC = () => {
                 O seu provador<br /><span className="inline-block mt-4 text-black bg-[#FFC20E] px-2">inteligente</span>
               </h2>
               <p className="text-stone-400 text-sm leading-relaxed font-medium">
-                Sustentabilidade com tecnologia de ponta. Veja seu novo look instantaneamente em nosso ambiente digital.
+                Sustentabilidade com tecnologia. Veja seu novo look instantaneamente em nosso ambiente digital.
               </p>
             </div>
 
@@ -123,19 +122,11 @@ const App: React.FC = () => {
               >
                 Iniciar Provador
               </button>
-              <a 
-                href="https://site.pecararabrecho.com.br/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block w-full py-4 bg-transparent border-2 border-stone-800 text-stone-300 rounded-2xl font-black active:scale-[0.98] transition-all uppercase tracking-tight text-sm"
-              >
-                Conhecer a Peça Rara
-              </a>
             </div>
 
             <div className="mt-8">
               <p className="text-[10px] text-stone-600 font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#FFC20E] rounded-full animate-pulse shadow-[0_0_8px_#FFC20E]"></span>
+                <span className="w-1.5 h-1.5 bg-[#FFC20E] rounded-full animate-pulse"></span>
                 IA Vision Ativa • Premium Experience
               </p>
             </div>
@@ -146,7 +137,7 @@ const App: React.FC = () => {
         return (
           <CameraCapture 
             label="Foto da Peça"
-            description="Tire uma foto nítida da roupa. O segredo de um bom provador virtual é a claridade da foto da peça."
+            description="Tire uma foto nítida da roupa que você gostou."
             onCapture={handleClothingCapture}
             icon={
               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -160,7 +151,7 @@ const App: React.FC = () => {
         return (
           <CameraCapture 
             label="Sua Selfie"
-            description="Agora precisamos ver você. Uma foto frontal bem iluminada garante o melhor caimento da roupa."
+            description="Uma foto frontal bem iluminada para o melhor caimento."
             onCapture={handleSelfieCapture}
             icon={
               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -183,14 +174,8 @@ const App: React.FC = () => {
             </div>
             
             <div className="space-y-4">
-              <h2 className="text-2xl font-black text-white tracking-tight uppercase">Renderizando Look...</h2>
+              <h2 className="text-2xl font-black text-white tracking-tight uppercase">Criando seu Look...</h2>
               <p className="text-[#FFC20E] text-xs font-bold uppercase tracking-widest animate-pulse">{loadingMessage}</p>
-            </div>
-
-            <div className="w-full bg-stone-900 p-6 rounded-3xl border border-stone-800 space-y-4">
-              <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest leading-relaxed">
-                Nossa inteligência artificial está mesclando as texturas para criar uma visualização realista.
-              </p>
             </div>
           </div>
         );
@@ -209,26 +194,17 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-center space-y-3">
-              <h2 className="text-3xl font-black text-white tracking-tighter uppercase">Look Finalizado</h2>
-              <p className="text-stone-400 text-sm font-medium">As roupas do nosso brechó ganham vida em você.</p>
-            </div>
-
-            <div className="w-full pt-4">
-              <button
-                onClick={reset}
-                className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-tight active:scale-95 transition-transform"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
-                Tentar Outra Peça
-              </button>
-            </div>
+            <button
+              onClick={reset}
+              className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-tight active:scale-95 transition-transform"
+            >
+              Tentar Outra Peça
+            </button>
           </div>
         );
 
       case 'error':
-        const isAuthError = state.errorMessage?.toLowerCase().includes('403') || state.errorMessage?.toLowerCase().includes('chave');
-        const isRateLimit = state.errorMessage?.toLowerCase().includes('429') || state.errorMessage?.toLowerCase().includes('ocupado');
+        const isRateLimit = state.errorMessage?.includes('Limite') || state.errorMessage?.includes('429');
         
         return (
           <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4 animate-in fade-in duration-500">
@@ -237,50 +213,36 @@ const App: React.FC = () => {
             </div>
             <div className="space-y-3">
               <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-tight">
-                {isAuthError ? 'Erro de Configuração' : isRateLimit ? 'Sistema Congestionado' : 'Erro Inesperado'}
+                {isRateLimit ? 'Sistema Ocupado' : 'Problema Técnico'}
               </h2>
               <div className="bg-stone-900 p-4 rounded-xl border border-stone-800">
                 <p className="text-red-400 text-xs font-mono leading-relaxed">{state.errorMessage}</p>
               </div>
               <p className="text-stone-500 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
-                {isAuthError 
-                  ? 'Verifique se você adicionou a variável API_KEY corretamente no painel da Vercel (Environment Variables).' 
-                  : isRateLimit 
-                    ? 'A versão gratuita do Google permite poucas fotos por minuto. Por favor, aguarde o cronômetro para liberar o acesso.'
-                    : 'Não conseguimos processar seu look. Verifique sua conexão e tente novamente.'}
+                {isRateLimit 
+                  ? 'A Vercel e o Google limitam o uso da IA gratuita para evitar abusos. Por favor, aguarde o cronômetro para tentar novamente.'
+                  : 'Não conseguimos processar seu look. Verifique sua conexão e tente novamente.'}
               </p>
             </div>
             
             <div className="w-full space-y-3">
-              {!isAuthError && (
-                <button
-                  onClick={retryProcessing}
-                  disabled={retryCountdown > 0}
-                  className={`w-full py-5 rounded-2xl font-black uppercase tracking-tight shadow-lg transition-all flex items-center justify-center gap-3 ${
-                    retryCountdown > 0 
-                      ? 'bg-stone-800 text-stone-500 cursor-not-allowed' 
-                      : 'bg-[#FFC20E] text-black active:scale-95'
-                  }`}
-                >
-                  {retryCountdown > 0 ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5 text-stone-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      Liberando em {retryCountdown}s
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                      Tentar Novamente
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={retryProcessing}
+                disabled={retryCountdown > 0}
+                className={`w-full py-5 rounded-2xl font-black uppercase tracking-tight shadow-lg transition-all flex items-center justify-center gap-3 ${
+                  retryCountdown > 0 
+                    ? 'bg-stone-800 text-stone-500 cursor-not-allowed' 
+                    : 'bg-[#FFC20E] text-black active:scale-95'
+                }`}
+              >
+                {retryCountdown > 0 ? `Liberando em ${retryCountdown}s` : 'Reprocessar Agora'}
+              </button>
               
               <button
                 onClick={reset}
                 className="w-full py-4 bg-transparent border-2 border-stone-800 text-stone-500 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-transform"
               >
-                Cancelar e Voltar
+                Voltar ao Início
               </button>
             </div>
           </div>

@@ -1,10 +1,10 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 /**
- * Redimensiona e comprime a imagem em base64 para evitar payloads muito grandes.
+ * Redimensiona e comprime a imagem em base64 para o menor tamanho viável.
+ * Reduzir o tamanho ajuda a evitar erros 429 e timeout.
  */
-const compressImage = async (base64: string, maxWidth = 1024): Promise<string> => {
+const compressImage = async (base64: string, maxWidth = 800): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64;
@@ -21,8 +21,13 @@ const compressImage = async (base64: string, maxWidth = 1024): Promise<string> =
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.8));
+      // Usando interpolação de alta qualidade para não perder detalhes da roupa
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+      }
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
     };
   });
 };
@@ -32,10 +37,10 @@ const compressImage = async (base64: string, maxWidth = 1024): Promise<string> =
  */
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
   try {
-    // Inicializa a API
+    // Cria instância com a chave da variável de ambiente
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Comprime as imagens antes de enviar para economizar cota e banda
+    // Comprime as imagens agressivamente para produção
     const compressedClothing = await compressImage(clothingBase64);
     const compressedSelfie = await compressImage(selfieBase64);
 
@@ -59,15 +64,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
             }
           },
           {
-            text: `Act as a high-end fashion AI editor for Peça Rara Brechó.
-            Task: Virtual Try-On.
-            Instruction: Take the clothing item from the first image and realistically apply it to the person in the second image.
-            
-            Technical Requirements:
-            1. Maintain patterns and colors of the garment.
-            2. Adjust the fit to the person's body naturally.
-            3. Keep the person's face exactly as in the selfie.
-            4. Return ONLY the resulting image.`
+            text: `Fashion AI Editor. Virtual Try-On. Apply the garment from the 1st image onto the person in the 2nd image. Match lighting and pose. Return ONLY the final image.`
           }
         ]
       }
@@ -75,7 +72,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
 
     const candidate = response.candidates?.[0];
     if (!candidate || !candidate.content?.parts) {
-      throw new Error("A IA está ocupada processando outras solicitações. Tente novamente em instantes.");
+      throw new Error("429"); // Simula erro de ocupado se não houver resposta
     }
 
     for (const part of candidate.content.parts) {
@@ -84,20 +81,19 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
       }
     }
 
-    throw new Error("O look foi processado, mas a imagem não foi retornada corretamente.");
+    throw new Error("Não foi possível gerar a imagem.");
   } catch (error: any) {
     console.error("Gemini API Error:", error);
+    const msg = error.message || "";
     
-    const message = error.message || "";
-    
-    if (message.includes("403") || message.includes("PERMISSION_DENIED")) {
-      throw new Error("Erro de Chave (403): Verifique se a variável API_KEY está correta no painel da Vercel.");
+    if (msg.includes("403") || msg.includes("PERMISSION_DENIED")) {
+      throw new Error("Erro de Chave: Verifique a API_KEY nas configurações da Vercel.");
     }
     
-    if (message.includes("429") || message.includes("RESOURCE_EXHAUSTED")) {
-      throw new Error("Sistema Ocupado (429): O Google limitou o acesso temporariamente. Aguarde 1 minuto.");
+    if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("limit")) {
+      throw new Error("Limite Atingido: A versão gratuita permite poucas imagens por minuto. Aguarde a liberação.");
     }
     
-    throw new Error("Ocorreu um erro ao criar seu visual. Verifique sua conexão ou tente fotos mais simples.");
+    throw new Error("Erro ao processar look. Tente novamente em instantes.");
   }
 };
