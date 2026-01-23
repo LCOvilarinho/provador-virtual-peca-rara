@@ -23,5 +23,5 @@
     /* Adicione isso para resolver import.meta.env */
     "types": ["vite/client", "@types/node"]
   },
-  "include": ["src"]
+  "include": ["src/**/*", "outros-arquivos.ts"]
 }
