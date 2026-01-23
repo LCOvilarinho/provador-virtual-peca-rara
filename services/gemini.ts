@@ -16,7 +16,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-70b-versatile',  // Atualize aqui para um modelo ativo
+        model: 'llama-3-groq-70b-8192-tool-use-preview',  // Atualize aqui para um modelo ativo
         messages: [
           {
             role: 'user',
