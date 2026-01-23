@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
   const API_KEY = process.env.API_KEY;
 
@@ -7,15 +5,17 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
     throw new Error("API_KEY não configurada no ambiente");
   }
 
+  // Import dinâmico para evitar erro de compilação se pacote não estiver instalado
+  const { GoogleGenerativeAI } = await import("@google/generative-ai");
+
   const genAI = new GoogleGenerativeAI(API_KEY);
 
-  // Limpa o prefixo data:image/...;base64, se houver
   const cleanClothing = clothingBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
   const cleanSelfie = selfieBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
 
   try {
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",  // Modelo gratuito atual (confirme na lista se for 'gemini-2.5-flash-latest')
+      model: "gemini-2.5-flash"  // Modelo gratuito atual com billing ligado
     });
 
     const result = await model.generateContent([
@@ -45,10 +45,10 @@ Gere APENAS a imagem final resultante em base64, sem texto, legendas ou explica�
       }
     ]);
 
-    // O Gemini retorna a imagem gerada em inlineData (base64)
-    const generatedImage = result.response.candidates[0].content.parts[0].inlineData.data;
+    // Retorno: a imagem gerada vem em inlineData.data (base64)
+    const generatedImageBase64 = result.response.candidates[0].content.parts[0].inlineData.data;
 
-    return `data:image/jpeg;base64,${generatedImage}`;
+    return `data:image/jpeg;base64,${generatedImageBase64}`;
   } catch (err) {
     console.error("Erro na API Gemini:", err);
     throw new Error("Oops! Não conseguimos processar agora. Tente novamente.");
