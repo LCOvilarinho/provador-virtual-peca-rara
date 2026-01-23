@@ -16,7 +16,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-4-maverick-17b-128e-instruct-fp8',  // MUDE PARA O MODELO ATIVO QUE VOCÊ VIU NA LISTA
+        model: 'llama-3.1-70b-versatile',  // COLOQUE AQUI O NOME EXATO QUE VOCÊ VIU NA LISTA OFICIAL
         messages: [
           {
             role: 'user',
