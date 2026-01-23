@@ -1,87 +1,84 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";  // Mantenha se já tiver, mas não usaremos mais
 
-/**
- * Comprime a imagem agressivamente para 640px para garantir sucesso na Vercel.
- */
-const compressImage = async (base64: string, maxWidth = 640): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = base64;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
+// Substitua pela sua chave Groq (crie em https://console.groq.com/keys)
+const GROQ_API_KEY = process.env.API_KEY || 'gsk_sua_chave_groq_aqui';  // Mantenha process.env.API_KEY
 
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
+const getGroqClient = () => {
+  return {
+    generateContent: async ({ model, contents }) => {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GROQ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.2-90b-vision-preview',  // ou 'llama-3.2-11b-vision-preview' se quiser mais rápido
+          messages: [
+            {
+              role: 'user',
+              content: contents.parts.map(part => {
+                if (part.inlineData) {
+                  return {
+                    type: 'image_url',
+                    image_url: { url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` }
+                  };
+                }
+                return { type: 'text', text: part.text };
+              }),
+            }
+          ],
+          max_tokens: 1024,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.statusText}`);
       }
 
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'medium';
-        ctx.drawImage(img, 0, 0, width, height);
-      }
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
-    };
-  });
+      const data = await response.json();
+      const generatedImageBase64 = data.choices[0].message.content;  // Ajuste se retornar imagem base64
+
+      // Se o Groq retornar texto com base64 da imagem gerada, extraia aqui
+      // Caso contrário, ajuste o prompt para retornar base64 direto
+      return generatedImageBase64;
+    }
+  };
 };
 
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
+  const client = getGroqClient();
+
+  // Limpe base64 (remova prefixo data:image/...;base64, se houver)
+  const cleanClothing = clothingBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
+  const cleanSelfie = selfieBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // Compressão ultra-leve para evitar erros de banda/cota
-    const [compCloth, compSelfie] = await Promise.all([
-      compressImage(clothingBase64),
-      compressImage(selfieBase64)
-    ]);
-
-    const dataCloth = compCloth.split(',')[1];
-    const dataSelfie = compSelfie.split(',')[1];
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+    const response = await client.generateContent({
+      model: 'llama-3.2-90b-vision-preview',
       contents: {
         parts: [
-          { inlineData: { data: dataCloth, mimeType: 'image/jpeg' } },
-          { inlineData: { data: dataSelfie, mimeType: 'image/jpeg' } },
-          { text: "Virtual Try-On: Place the garment from image 1 onto the person in image 2. Maintain face and realistic fit. Return image only." }
+          { inlineData: { data: cleanClothing, mimeType: 'image/jpeg' } },
+          { inlineData: { data: cleanSelfie, mimeType: 'image/jpeg' } },
+          {
+            text: `Aja como um editor de moda profissional da Peça Rara Brechó.
+            Tarefa: Realize um "virtual try-on" realista.
+            Instrução: Pegue a roupa da primeira imagem e transfira-a para a pessoa na segunda imagem.
+            Regras Críticas:
+            1. Preserve as texturas originais, estampas e cores da peça de roupa.
+            2. Ajuste o caimento da roupa ao corpo da pessoa de forma natural, respeitando dobras e sombras.
+            3. Mantenha o rosto e as características físicas da pessoa idênticas à imagem original da selfie.
+            4. O fundo deve permanecer coerente com a foto da selfie.
+            5. O resultado final deve parecer uma fotografia profissional de estúdio de moda.
+            Gere APENAS a imagem final resultante em base64, sem texto, legendas ou explicações.`
+          }
         ]
       }
     });
 
-    const candidate = response.candidates?.[0];
-    
-    // Verifica se foi bloqueado por segurança (comum em fotos de pessoas)
-    if (candidate?.finishReason === 'SAFETY') {
-      throw new Error("SEGURANÇA: A foto foi considerada sensível pela IA. Tente uma foto com roupas mais discretas ou melhor iluminação.");
-    }
-
-    if (!candidate || !candidate.content?.parts) {
-      throw new Error("429");
-    }
-
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-
-    throw new Error("Não foi possível gerar a imagem.");
-  } catch (error: any) {
-    const msg = error.message || "";
-    console.error("Erro API:", msg);
-    
-    if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
-      throw new Error("LIMITE: O Google limitou o acesso gratuito temporariamente. Aguarde a liberação do cronômetro.");
-    }
-    
-    if (msg.includes("SEGURANÇA")) throw error;
-    
-    throw new Error("Ocorreu um problema técnico. Tente novamente em instantes.");
+    return response;  // Retorna base64 da imagem gerada
+  } catch (err) {
+    console.error(err);
+    throw new Error("Oops! Não conseguimos processar agora. Tente novamente.");
   }
 };
