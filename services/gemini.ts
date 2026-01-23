@@ -17,7 +17,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.2-90b-vision-preview', // ou 'llama-3.2-11b-vision-preview' para mais rápido
+        model: 'llama-3.2-11b-vision-preview', // ou 'llama-3.2-11b-vision-preview' para mais rápido
         messages: [
           {
             role: 'user',
