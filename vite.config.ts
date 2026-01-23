@@ -1,19 +1,10 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig(({ mode }) => {
-  // Use type assertion to avoid TypeScript error for process.cwd() in environments where Node types are not fully recognized
-  const env = loadEnv(mode, (process as any).cwd(), '');
-  
-  return {
-    plugins: [react()],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || '')
-    },
-    build: {
-      outDir: 'dist',
-      target: 'esnext'
-    }
-  };
-});
+export default defineConfig({
+  plugins: [react()],
+  base: './',
+  define: {
+    'process.env.API_KEY': JSON.stringify(import.meta.env.VITE_API_KEY)
+  }
+})
