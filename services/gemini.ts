@@ -1,65 +1,30 @@
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
-  const GROQ_API_KEY = process.env.API_KEY;
+  const FAL_API_KEY = process.env.API_KEY;
 
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY não configurada");
+  if (!FAL_API_KEY) {
+    throw new Error("FAL_API_KEY não configurada");
   }
 
-  const cleanClothing = clothingBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-  const cleanSelfie = selfieBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('https://fal.run/fal-ai/flux/schnell', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Key ${FAL_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-70b-versatile',  // COLOQUE AQUI O NOME EXATO QUE VOCÊ VIU NA LISTA OFICIAL
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: { url: `data:image/jpeg;base64,${cleanClothing}` }
-              },
-              {
-                type: 'image_url',
-                image_url: { url: `data:image/jpeg;base64,${cleanSelfie}` }
-              },
-              {
-                type: 'text',
-                text: `Aja como um editor de moda profissional da Peça Rara Brechó.
-                Tarefa: Realize um "virtual try-on" realista.
-                Instrução: Pegue a roupa da primeira imagem e transfira-a para a pessoa na segunda imagem.
-                Regras Críticas:
-                1. Preserve as texturas originais, estampas e cores da peça de roupa.
-                2. Ajuste o caimento da roupa ao corpo da pessoa de forma natural, respeitando dobras e sombras.
-                3. Mantenha o rosto e as características físicas da pessoa idênticas à imagem original da selfie.
-                4. O fundo deve permanecer coerente com a foto da selfie.
-                5. O resultado final deve parecer uma fotografia profissional de estúdio de moda.
-                Gere APENAS a imagem final resultante em base64, sem texto, legendas ou explicações.`
-              }
-            ]
-          }
-        ],
-        max_tokens: 1024,
+        prompt: `Realistic virtual try-on: take the clothing from the first image and put it on the person in the second image. Preserve textures, colors, patterns, natural fit, folds, shadows. Keep the person's face and body identical to the selfie. Background consistent with selfie. Professional fashion photo studio look. Output only the final image.`,
+        image_urls: [
+          `data:image/jpeg;base64,${clothingBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '')}`,
+          `data:image/jpeg;base64,${selfieBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '')}`
+        ]
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Groq API error: ${response.status} - ${JSON.stringify(errorData)}`);
-    }
-
     const data = await response.json();
-    const generatedContent = data.choices[0].message.content;
-
-    return generatedContent;
+    return data.images[0].url;  // ou data.image.base64 se retornar base64
   } catch (err) {
     console.error(err);
-    throw new Error("Oops! Não conseguimos processar agora. Tente novamente.");
+    throw new Error("Oops! Não conseguimos processar agora.");
   }
 };
