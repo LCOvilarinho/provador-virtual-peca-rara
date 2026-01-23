@@ -5,8 +5,9 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "allowJs": true, // <--- ADICIONE ISSO
+    "checkJs": false, // <--- ADICIONE ISSO
 
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
@@ -14,14 +15,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-
-    /* Adicione isso para resolver import.meta.env */
     "types": ["vite/client", "@types/node"]
   },
-  "include": ["src/**/*", "outros-arquivos.ts"]
+  "include": ["src"] // <--- Simplifique para apenas "src"
 }
