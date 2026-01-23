@@ -1,11 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
   const API_KEY = import.meta.env.VITE_API_KEY;
 
   if (!API_KEY) {
     throw new Error("VITE_API_KEY não configurada");
   }
+
+  // Import dinâmico para evitar erro de compilação se pacote não estiver instalado
+  const { GoogleGenerativeAI } = await import("@google/generative-ai");
 
   const genAI = new GoogleGenerativeAI(API_KEY);
 
@@ -14,7 +15,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
 
   try {
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash"
+      model: "gemini-2.5-flash"  // Modelo gratuito atual com billing ligado
     });
 
     const result = await model.generateContent([
