@@ -1,8 +1,8 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 /**
- * Comprime a imagem para 512px - tamanho mínimo para qualidade aceitável da IA.
- * Isso reduz o tempo de transferência e ajuda a evitar o erro 429 por volume.
+ * Comprime a imagem para 512px para minimizar consumo de banda e cota de API.
  */
 const compressImage = async (base64: string, maxWidth = 512): Promise<string> => {
   return new Promise((resolve) => {
@@ -26,7 +26,6 @@ const compressImage = async (base64: string, maxWidth = 512): Promise<string> =>
         ctx.imageSmoothingQuality = 'medium';
         ctx.drawImage(img, 0, 0, width, height);
       }
-      // Qualidade 0.6 para ser o mais leve possível
       resolve(canvas.toDataURL('image/jpeg', 0.6));
     };
   });
@@ -34,9 +33,10 @@ const compressImage = async (base64: string, maxWidth = 512): Promise<string> =>
 
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // FIX: Always use process.env.API_KEY directly when initializing the GoogleGenAI client instance.
+    // The apiKey must be obtained exclusively from the environment variable.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     
-    // Processamento paralelo com compressão ultra-leve
     const [compCloth, compSelfie] = await Promise.all([
       compressImage(clothingBase64),
       compressImage(selfieBase64)
@@ -45,13 +45,14 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
     const dataCloth = compCloth.split(',')[1];
     const dataSelfie = compSelfie.split(',')[1];
 
+    // FIX: Using gemini-2.5-flash-image for image editing task as per guidelines.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: dataCloth, mimeType: 'image/jpeg' } },
           { inlineData: { data: dataSelfie, mimeType: 'image/jpeg' } },
-          { text: "Virtual Try-On: Place the garment from image 1 onto the person in image 2. Match lighting and pose. Return ONLY the edited image." }
+          { text: "Virtual Try-On: Place the garment from image 1 onto the person in image 2. Realistic fit. Return image only." }
         ]
       }
     });
@@ -59,30 +60,35 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
     const candidate = response.candidates?.[0];
     
     if (candidate?.finishReason === 'SAFETY') {
-      throw new Error("SEGURANÇA: A foto foi bloqueada pelos filtros automáticos do Google. Tente uma pose diferente.");
+      throw new Error("SEGURANÇA: Foto recusada pelos filtros automáticos. Tente outra pose ou iluminação.");
     }
 
     if (!candidate || !candidate.content?.parts) {
-      throw new Error("429");
+      throw new Error("LIMITE: Ocorreu um erro ao processar a resposta do modelo.");
     }
 
+    // FIX: Iterate through all parts to find the image part, as recommended by the guidelines.
+    // Do not assume the first part is an image part.
     for (const part of candidate.content.parts) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
 
-    throw new Error("Erro na geração da imagem.");
+    throw new Error("Erro na geração da imagem: nenhum dado de imagem retornado.");
   } catch (error: any) {
     const msg = error.message || "";
-    console.error("Gemini Error:", msg);
+    console.error("Gemini Detail:", error);
     
+    // FIX: Robust handling for API errors and quota issues.
+    if (msg.includes("API Key") || msg.includes("INVALID_ARGUMENT")) {
+      throw new Error("CONFIGURAÇÃO: Erro de autenticação na API.");
+    }
+
     if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
-      throw new Error("LIMITE: O Google limitou o acesso gratuito. Aguarde 2 minutos para a próxima tentativa.");
+      throw new Error("LIMITE: Cota gratuita esgotada. Aguarde o cronômetro para tentar novamente.");
     }
     
-    if (msg.includes("SEGURANÇA")) throw error;
-    
-    throw new Error("Ocorreu um erro técnico. Verifique sua conexão e tente novamente.");
+    throw error;
   }
 };
