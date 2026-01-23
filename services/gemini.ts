@@ -2,10 +2,9 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
   const GROQ_API_KEY = process.env.API_KEY;
 
   if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY não configurada no ambiente");
+    throw new Error("GROQ_API_KEY não configurada");
   }
 
-  // Limpe base64 (remova prefixo se houver)
   const cleanClothing = clothingBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
   const cleanSelfie = selfieBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
 
@@ -17,7 +16,7 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.2-11b-vision-preview', // ou 'llama-3.2-11b-vision-preview' para mais rápido
+        model: 'llama-3.1-70b-versatile',  // Atualize aqui para um modelo ativo
         messages: [
           {
             role: 'user',
@@ -58,7 +57,6 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
 
-    // Supondo que o Groq retorne base64 direto da imagem gerada
     return generatedContent;
   } catch (err) {
     console.error(err);
