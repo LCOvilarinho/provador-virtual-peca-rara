@@ -1,6 +1,5 @@
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
-  const API_KEY = process.env.API_KEY;
-
+  const API_KEY = import.meta.env.VITE_API_KEY;
   if (!API_KEY) {
     throw new Error("API_KEY não configurada no ambiente");
   }
