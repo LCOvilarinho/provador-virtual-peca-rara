@@ -10,9 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.38.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+  "@google/generative-ai": "^0.21.0",  // Nome correto + versão atual estável
+  "react": "^19.0.0",
+  "react-dom": "^19.0.0"
+},
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
