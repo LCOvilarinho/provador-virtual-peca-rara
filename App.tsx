@@ -13,7 +13,7 @@ const App: React.FC = () => {
     errorMessage: null,
   });
 
-  const [loadingMessage, setLoadingMessage] = useState("Preparando visual...");
+  const [loadingMessage, setLoadingMessage] = useState("Iniciando...");
   const [retryCountdown, setRetryCountdown] = useState(0);
 
   const updateStep = (step: AppStep) => setState(prev => ({ ...prev, step }));
@@ -29,12 +29,12 @@ const App: React.FC = () => {
   const runFittingProcess = useCallback(() => {
     if (!state.clothingImage || !state.selfieImage) return;
 
-    const messages = ["Otimizando...", "Ajustando caimento...", "Renderizando...", "Finalizando!"];
+    const messages = ["Processando tecidos...", "Ajustando luz...", "Finalizando..."];
     let i = 0;
     const interval = setInterval(() => {
       setLoadingMessage(messages[i % messages.length]);
       i++;
-    }, 4000);
+    }, 5000);
 
     processVirtualFitting(state.clothingImage, state.selfieImage)
       .then(result => {
@@ -44,9 +44,9 @@ const App: React.FC = () => {
         const errorStr = String(err);
         setState(prev => ({ ...prev, step: 'error', errorMessage: errorStr }));
         
-        // Na Vercel, o limite 429 exige mais tempo. Usamos 120s para garantir.
+        // Na Vercel, o IP é compartilhado. 180s é mais seguro para a cota gratuita.
         if (errorStr.includes('LIMITE') || errorStr.includes('429')) {
-          setRetryCountdown(120);
+          setRetryCountdown(180);
         }
       })
       .finally(() => clearInterval(interval));
@@ -78,7 +78,7 @@ const App: React.FC = () => {
       case 'welcome':
         return (
           <div className="flex flex-col items-center justify-center text-center space-y-8 animate-fade-in">
-            <div className="w-full aspect-square bg-stone-900 rounded-3xl overflow-hidden flex items-center justify-center p-4 border border-stone-800">
+            <div className="w-full aspect-square bg-stone-900 rounded-3xl overflow-hidden flex items-center justify-center p-4 border border-stone-800 shadow-2xl">
               <div className="w-64 h-64 bg-[#FFC20E] rounded-full flex flex-col items-center justify-center shadow-2xl transform rotate-[-3deg]">
                 <h1 className="text-black font-black text-5xl tracking-tighter leading-none mb-1">peça</h1>
                 <h1 className="text-black font-black text-5xl tracking-tighter leading-none">rara</h1>
@@ -87,24 +87,24 @@ const App: React.FC = () => {
             </div>
             <div className="space-y-4 px-2">
               <h2 className="text-3xl font-black text-white uppercase leading-tight">O seu provador<br /><span className="text-black bg-[#FFC20E] px-2">inteligente</span></h2>
-              <p className="text-stone-400 text-sm font-medium">Veja looks do nosso brechó em você instantaneamente.</p>
+              <p className="text-stone-400 text-sm font-medium">Experimente o brechó de forma digital.</p>
             </div>
-            <button onClick={() => updateStep('capture-clothing')} className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl uppercase active:scale-[0.98] transition-all">Iniciar Provador</button>
+            <button onClick={() => updateStep('capture-clothing')} className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl uppercase active:scale-[0.98] transition-all">Iniciar Agora</button>
           </div>
         );
 
       case 'capture-clothing':
-        return <CameraCapture label="Foto da Peça" description="Tire uma foto nítida da peça no cabide ou arara." onCapture={handleClothingCapture} icon={<svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.62 1.96V21a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5.42a2 2 0 0 0-1.62-1.96Z"/><path d="M12 2v21"/></svg>} />;
+        return <CameraCapture label="Foto da Peça" description="Fotografe a roupa que você deseja experimentar." onCapture={handleClothingCapture} icon={<svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.62 1.96V21a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5.42a2 2 0 0 0-1.62-1.96Z"/><path d="M12 2v21"/></svg>} />;
 
       case 'capture-selfie':
-        return <CameraCapture label="Sua Selfie" description="Uma foto frontal bem iluminada para vestir a peça." onCapture={handleSelfieCapture} icon={<svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>} />;
+        return <CameraCapture label="Sua Selfie" description="Tire uma foto sua para ver como a peça fica no corpo." onCapture={handleSelfieCapture} icon={<svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>} />;
 
       case 'processing':
         return (
           <div className="flex flex-col items-center justify-center text-center space-y-8 py-12">
             <div className="w-32 h-32 border-4 border-stone-900 border-t-[#FFC20E] rounded-full animate-spin"></div>
             <div className="space-y-4">
-              <h2 className="text-2xl font-black text-white uppercase">Criando Look...</h2>
+              <h2 className="text-2xl font-black text-white uppercase">Veste Peça Rara...</h2>
               <p className="text-[#FFC20E] text-xs font-bold uppercase tracking-widest animate-pulse">{loadingMessage}</p>
             </div>
           </div>
@@ -112,26 +112,24 @@ const App: React.FC = () => {
 
       case 'result':
         return (
-          <div className="flex flex-col items-center space-y-8">
-            <div className="w-full rounded-[2.5rem] overflow-hidden border-4 border-[#FFC20E] bg-stone-900">
+          <div className="flex flex-col items-center space-y-8 animate-in zoom-in duration-500">
+            <div className="w-full rounded-[2.5rem] overflow-hidden border-4 border-[#FFC20E] bg-stone-900 shadow-2xl">
               <img src={state.resultImage || ''} alt="Resultado" className="w-full h-auto object-cover" />
             </div>
-            <button onClick={reset} className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl uppercase shadow-xl active:scale-95 transition-transform">Tentar Outra Peça</button>
+            <button onClick={reset} className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-xl uppercase shadow-xl active:scale-95 transition-transform">Outra Peça</button>
           </div>
         );
 
       case 'error':
         const isLimit = state.errorMessage?.includes('LIMITE');
-        const isSafety = state.errorMessage?.includes('SEGURANÇA');
         return (
-          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4">
+          <div className="flex flex-col items-center justify-center text-center space-y-6 py-12 px-4 animate-in fade-in duration-500">
             <div className="w-20 h-20 bg-red-900/20 text-red-500 rounded-full flex items-center justify-center border-2 border-red-900/30 animate-pulse-ring">
               <svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             </div>
             <div className="space-y-3">
-              <h2 className="text-2xl font-black text-white uppercase">{isLimit ? 'Cota Esgotada' : isSafety ? 'Foto Recusada' : 'Erro no App'}</h2>
+              <h2 className="text-2xl font-black text-white uppercase">{isLimit ? 'Cota de Uso' : 'Erro Técnico'}</h2>
               <p className="text-stone-500 text-xs font-medium leading-relaxed">{state.errorMessage}</p>
-              {isLimit && <p className="text-[#FFC20E] text-[10px] font-bold uppercase">A cota gratuita do Google é compartilhada. Aguarde a renovação.</p>}
             </div>
             <div className="w-full space-y-3">
               {isLimit ? (
@@ -139,16 +137,16 @@ const App: React.FC = () => {
                   Liberando em {retryCountdown}s
                 </div>
               ) : (
-                <button onClick={() => updateStep('processing')} className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black uppercase">Tentar Novamente</button>
+                <button onClick={() => updateStep('processing')} className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black uppercase active:scale-95 transition-all">Tentar Agora</button>
               )}
-              <button onClick={reset} className="w-full py-4 text-stone-500 font-black uppercase text-[10px]">Voltar ao Início</button>
+              <button onClick={reset} className="w-full py-4 text-stone-600 font-black uppercase text-[10px] tracking-widest">Reiniciar App</button>
             </div>
           </div>
         );
     }
   };
 
-  return <Layout title={state.step !== 'welcome' ? 'Fitting Room' : undefined}>{renderContent()}</Layout>;
+  return <Layout title={state.step !== 'welcome' ? 'Digital Try-On' : undefined}>{renderContent()}</Layout>;
 };
 
 export default App;

@@ -1,65 +1,88 @@
-export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
-  const API_KEY = import.meta.env.VITE_API_KEY;
+import { GoogleGenAI } from "@google/genai";
 
-  if (!API_KEY) {
-    throw new Error("VITE_API_KEY não configurada");
-  }
+/**
+ * Comprime a imagem para 512px - tamanho mínimo para qualidade aceitável da IA.
+ * Isso reduz o tempo de transferência e ajuda a evitar o erro 429 por volume.
+ */
+const compressImage = async (base64: string, maxWidth = 512): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
 
-  // Import dinâmico para evitar erro de compilação se pacote não estiver instalado
-  const { GoogleGenerativeAI } = await import("@google/generative-ai");
-
-  const genAI = new GoogleGenerativeAI(API_KEY);
-
-  const cleanClothing = clothingBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-  const cleanSelfie = selfieBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-
-  try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash"  // Modelo gratuito atual com billing ligado
-    });
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: cleanClothing
-        }
-      },
-      {
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: cleanSelfie
-        }
-      },
-      {
-        text: `Aja como um editor de moda profissional da Peça Rara Brechó.
-Tarefa: Realize um "virtual try-on" realista.
-Instrução: Pegue a roupa da primeira imagem e transfira-a para a pessoa na segunda imagem.
-Regras Críticas:
-1. Preserve as texturas originais, estampas e cores da peça de roupa.
-2. Ajuste o caimento da roupa ao corpo da pessoa de forma natural, respeitando dobras e sombras.
-3. Mantenha o rosto e as características físicas da pessoa idênticas à imagem original da selfie.
-4. O fundo deve permanecer coerente com a foto da selfie.
-5. O resultado final deve parecer uma fotografia profissional de estúdio de moda.
-Gere APENAS a imagem final resultante em base64, sem texto, legendas ou explicações.`
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
       }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'medium';
+        ctx.drawImage(img, 0, 0, width, height);
+      }
+      // Qualidade 0.6 para ser o mais leve possível
+      resolve(canvas.toDataURL('image/jpeg', 0.6));
+    };
+  });
+};
+
+export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // Processamento paralelo com compressão ultra-leve
+    const [compCloth, compSelfie] = await Promise.all([
+      compressImage(clothingBase64),
+      compressImage(selfieBase64)
     ]);
 
-    // Checagem segura para evitar undefined
-    const candidates = result.response.candidates;
-    if (!candidates || candidates.length === 0) {
-      throw new Error("Resposta do Gemini sem candidates");
+    const dataCloth = compCloth.split(',')[1];
+    const dataSelfie = compSelfie.split(',')[1];
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          { inlineData: { data: dataCloth, mimeType: 'image/jpeg' } },
+          { inlineData: { data: dataSelfie, mimeType: 'image/jpeg' } },
+          { text: "Virtual Try-On: Place the garment from image 1 onto the person in image 2. Match lighting and pose. Return ONLY the edited image." }
+        ]
+      }
+    });
+
+    const candidate = response.candidates?.[0];
+    
+    if (candidate?.finishReason === 'SAFETY') {
+      throw new Error("SEGURANÇA: A foto foi bloqueada pelos filtros automáticos do Google. Tente uma pose diferente.");
     }
 
-    const generatedImageBase64 = candidates[0].content.parts[0].inlineData?.data;
-
-    if (!generatedImageBase64) {
-      throw new Error("Não encontrou imagem gerada na resposta");
+    if (!candidate || !candidate.content?.parts) {
+      throw new Error("429");
     }
 
-    return `data:image/jpeg;base64,${generatedImageBase64}`;
-  } catch (err) {
-    console.error("Erro na API Gemini:", err);
-    throw new Error("Oops! Não conseguimos processar agora. Tente novamente.");
+    for (const part of candidate.content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+
+    throw new Error("Erro na geração da imagem.");
+  } catch (error: any) {
+    const msg = error.message || "";
+    console.error("Gemini Error:", msg);
+    
+    if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+      throw new Error("LIMITE: O Google limitou o acesso gratuito. Aguarde 2 minutos para a próxima tentativa.");
+    }
+    
+    if (msg.includes("SEGURANÇA")) throw error;
+    
+    throw new Error("Ocorreu um erro técnico. Verifique sua conexão e tente novamente.");
   }
 };
