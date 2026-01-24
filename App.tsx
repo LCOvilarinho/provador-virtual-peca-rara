@@ -57,7 +57,8 @@ const App: React.FC = () => {
         setState(prev => ({ ...prev, resultImage: result, step: 'result', errorMessage: null }));
       })
       .catch(err => {
-        setState(prev => ({ ...prev, step: 'error', errorMessage: String(err) }));
+        const errorText = err instanceof Error ? err.message : String(err);
+        setState(prev => ({ ...prev, step: 'error', errorMessage: errorText }));
       })
       .finally(() => clearInterval(interval));
 
