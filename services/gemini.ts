@@ -1,6 +1,7 @@
+
 import { GoogleGenAI } from "@google/genai";
 
-const compressImage = async (base64: string, maxWidth = 512): Promise<string> => {
+const compressImage = async (base64: string, maxWidth = 1024): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64;
@@ -19,53 +20,52 @@ const compressImage = async (base64: string, maxWidth = 512): Promise<string> =>
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'medium';
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
       }
-      resolve(canvas.toDataURL('image/jpeg', 0.6));
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
     };
   });
 };
 
 export const processVirtualFitting = async (clothingBase64: string, selfieBase64: string): Promise<string> => {
-  // CRÍTICO: Não cachear a chave fora da função. 
-  // O process.env.API_KEY pode ser atualizado dinamicamente pelo diálogo do AI Studio.
-  const apiKey = process.env.API_KEY;
-
-  if (!apiKey || apiKey === "") {
-    throw new Error("API_KEY_MISSING: Por favor, selecione uma chave de API válida.");
-  }
+  // Criamos a instância aqui para garantir o uso da chave mais recente do seletor
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    
     const [compCloth, compSelfie] = await Promise.all([
-      compressImage(clothingBase64),
-      compressImage(selfieBase64)
+      compressImage(clothingBase64, 1024),
+      compressImage(selfieBase64, 1024)
     ]);
 
     const dataCloth = compCloth.split(',')[1];
     const dataSelfie = compSelfie.split(',')[1];
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-3-pro-image-preview',
       contents: {
         parts: [
           { inlineData: { data: dataCloth, mimeType: 'image/jpeg' } },
           { inlineData: { data: dataSelfie, mimeType: 'image/jpeg' } },
-          { text: "Virtual Try-On: Transfer the clothing from image 1 to the person in image 2. Maintain realistic pose and lighting. Return the result image ONLY." }
+          { text: "Professional Fashion Try-On: Take the exact garment from the first image and realistically composite it onto the person in the second image. Pay extreme attention to fabric texture, shadows, and body contours. The final output must look like a professional studio photograph. Return the image only." }
         ]
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "3:4",
+          imageSize: "1K"
+        }
       }
     });
 
     const candidate = response.candidates?.[0];
     
     if (candidate?.finishReason === 'SAFETY') {
-      throw new Error("SEGURANÇA: Foto recusada pelos filtros automáticos. Tente uma pose diferente.");
+      throw new Error("O filtro de segurança da IA barrou esta imagem. Tente uma foto mais formal.");
     }
 
     if (!candidate || !candidate.content?.parts) {
-      throw new Error("ERRO: Resposta incompleta da IA.");
+      throw new Error("Não foi possível processar a imagem. Tente novamente.");
     }
 
     for (const part of candidate.content.parts) {
@@ -74,18 +74,13 @@ export const processVirtualFitting = async (clothingBase64: string, selfieBase64
       }
     }
 
-    throw new Error("ERRO: Nenhuma imagem foi gerada. Tente novamente.");
+    throw new Error("Falha ao gerar o preview visual.");
   } catch (error: any) {
-    console.error("Gemini Details:", error);
     const msg = error.message || String(error);
+    console.error("Erro na Demo:", msg);
     
-    // Tratamento unificado de cota
-    if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota")) {
-      throw new Error("LIMITE: O servidor está sobrecarregado. Para uso profissional sem esperas, configure sua própria chave.");
-    }
-
-    if (msg.includes("API Key") || msg.includes("Requested entity was not found")) {
-      throw new Error("API_KEY_INVALID: Sua chave de API é inválida ou expirou.");
+    if (msg.includes("429") || msg.includes("Requested entity was not found")) {
+      throw new Error("Erro de Licença: É necessário reconfigurar a chave de acesso para este dispositivo.");
     }
 
     throw error;
