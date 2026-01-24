@@ -4,8 +4,17 @@ import { CameraCapture } from './components/CameraCapture';
 import { processVirtualFitting } from './services/gemini';
 import { AppStep, AppState } from './types';
 
-// Redundant global declaration for Window['aistudio'] removed to fix TS duplication error.
-// The environment provides these types automatically.
+// Declare AIStudio interface and augment Window to fix type and modifier errors
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey(): Promise<boolean>;
+    openSelectKey(): Promise<void>;
+  }
+
+  interface Window {
+    readonly aistudio: AIStudio;
+  }
+}
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -25,8 +34,7 @@ const App: React.FC = () => {
     try {
       if (window.aistudio) {
         await window.aistudio.openSelectKey();
-        // Mandatory: assume the key selection was successful after triggering openSelectKey() 
-        // and proceed to avoid race conditions.
+        // Após abrir o seletor, assumimos sucesso e tentamos processar se houver fotos
         if (state.clothingImage && state.selfieImage) {
           updateStep('processing');
         }
@@ -55,8 +63,8 @@ const App: React.FC = () => {
       .catch(err => {
         const errorStr = String(err);
         
-        // If the API call fails due to key issues, prompt the user again.
-        if (errorStr.includes("API_KEY") || errorStr.includes("Requested entity was not found")) {
+        // Se a chave não for encontrada ou for inválida, abre o seletor automaticamente
+        if (errorStr.includes("entity was not found") || errorStr.includes("API_KEY") || errorStr.includes("key")) {
           handleSelectKey();
           return;
         }
@@ -173,7 +181,7 @@ const App: React.FC = () => {
               <h2 className="text-2xl font-black text-white uppercase leading-none">{isQuota ? 'Servidor Instável' : 'Algo deu errado'}</h2>
               <p className="text-stone-500 text-xs font-medium max-w-[280px] leading-relaxed">
                 {isQuota 
-                  ? "A Vercel está com tráfego intenso. Para evitar esperas, use sua própria chave do Google Cloud (Faturamento Ativo)." 
+                  ? "A Vercel atingiu o limite de requisições gratuitas para este IP. Por favor, use sua própria chave do Google Cloud clicando no botão abaixo." 
                   : state.errorMessage}
               </p>
             </div>
@@ -183,14 +191,14 @@ const App: React.FC = () => {
                 className="w-full py-5 bg-[#FFC20E] text-black rounded-2xl font-black text-lg uppercase shadow-lg active:scale-95 flex flex-col items-center justify-center leading-none"
               >
                 Configurar Minha Chave
-                <span className="text-[8px] mt-1 font-bold opacity-70">Recomendado para demonstração</span>
+                <span className="text-[8px] mt-1 font-bold opacity-70 italic tracking-wider">RECOMENDADO PARA USO NA LOJA</span>
               </button>
               <button 
                 onClick={() => updateStep('processing')} 
                 disabled={retryCountdown > 0} 
                 className={`w-full py-4 rounded-2xl font-black uppercase transition-all ${retryCountdown > 0 ? 'bg-stone-900 text-stone-600 border border-stone-800' : 'bg-white text-black active:scale-95'}`}
               >
-                {retryCountdown > 0 ? `Tentar em ${retryCountdown}s` : 'Tentar Novamente'}
+                {retryCountdown > 0 ? `Aguarde ${retryCountdown}s` : 'Tentar Novamente'}
               </button>
               <button onClick={reset} className="text-stone-600 font-bold uppercase text-[9px] tracking-[0.2em] pt-4">Sair do Provador</button>
             </div>
