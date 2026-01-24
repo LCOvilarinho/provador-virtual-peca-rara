@@ -22,6 +22,26 @@ const App: React.FC = () => {
     updateStep('capture-clothing');
   };
 
+  const startNewFitting = () => {
+    setState({
+      step: 'capture-clothing',
+      clothingImage: null,
+      selfieImage: null,
+      resultImage: null,
+      errorMessage: null,
+    });
+  };
+
+  const resetToWelcome = () => {
+    setState({
+      step: 'welcome',
+      clothingImage: null,
+      selfieImage: null,
+      resultImage: null,
+      errorMessage: null,
+    });
+  };
+
   const runFittingProcess = useCallback(() => {
     if (!state.clothingImage || !state.selfieImage) return;
 
@@ -50,10 +70,6 @@ const App: React.FC = () => {
       return cleanup;
     }
   }, [state.step, runFittingProcess]);
-
-  const reset = () => {
-    setState({ step: 'welcome', clothingImage: null, selfieImage: null, resultImage: null, errorMessage: null });
-  };
 
   const renderContent = () => {
     switch (state.step) {
@@ -129,9 +145,9 @@ const App: React.FC = () => {
               <img src={state.resultImage || ''} alt="Resultado" className="w-full h-auto" />
               <div className="absolute top-4 right-4 bg-[#FFC20E] text-black text-[9px] font-black px-3 py-1 rounded-full uppercase">Look Gerado</div>
             </div>
-            <div className="w-full space-y-4 pt-2">
-              <button onClick={reset} className="w-full py-5 bg-[#FFC20E] text-black rounded-[1.5rem] font-black text-lg uppercase tracking-tight shadow-[0_10px_30px_rgba(255,194,14,0.3)]">NOVA PEÇA</button>
-              <button onClick={() => window.print()} className="w-full py-3 border border-white/10 text-white font-bold text-[10px] uppercase tracking-widest text-center rounded-xl">Salvar Resultado</button>
+            <div className="w-full pt-4">
+              <button onClick={startNewFitting} className="w-full py-5 bg-[#FFC20E] text-black rounded-[1.5rem] font-black text-lg uppercase tracking-tight shadow-[0_10px_30px_rgba(255,194,14,0.3)] hover:scale-[1.02] transition-transform">NOVA PEÇA</button>
+              <button onClick={resetToWelcome} className="w-full py-3 mt-2 text-gray-500 font-bold text-[10px] uppercase tracking-[0.2em] text-center">Voltar ao Início</button>
             </div>
           </div>
         );
@@ -146,7 +162,7 @@ const App: React.FC = () => {
               <h3 className="text-xl font-black uppercase">Ops! Algo falhou</h3>
               <p className="text-gray-400 font-medium px-8 text-sm">{state.errorMessage}</p>
             </div>
-            <button onClick={reset} className="w-full py-4 bg-white text-black rounded-[1.5rem] font-black uppercase tracking-tight">Tentar Novamente</button>
+            <button onClick={startNewFitting} className="w-full py-4 bg-white text-black rounded-[1.5rem] font-black uppercase tracking-tight">Tentar Novamente</button>
           </div>
         );
     }
